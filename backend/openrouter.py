@@ -1,190 +1,81 @@
-"""
-OpenRouter API Client
-
-Handles communication with the OpenRouter API for multi-model LLM access.
-"""
-from __future__ import annotations
+"""OpenRouter API client for making LLM requests."""
 
 import httpx
-from typing import AsyncIterator
+from typing import List, Dict, Any, Optional
+from .config import OPENROUTER_API_KEY, OPENROUTER_API_URL
 
-from backend.config import OPENROUTER_API_KEY, OPENROUTER_BASE_URL
 
+async def query_model(
+    model: str,
+    messages: List[Dict[str, str]],
+    timeout: float = 120.0
+) -> Optional[Dict[str, Any]]:
+    """
+    Query a single model via OpenRouter API.
 
-class OpenRouterClient:
-    """Async client for OpenRouter API."""
+    Args:
+        model: OpenRouter model identifier (e.g., "openai/gpt-4o")
+        messages: List of message dicts with 'role' and 'content'
+        timeout: Request timeout in seconds
 
-    def __init__(self, api_key: str | None = None, base_url: str | None = None):
-        self.api_key = api_key or OPENROUTER_API_KEY
-        self.base_url = base_url or OPENROUTER_BASE_URL
-        self._client: httpx.AsyncClient | None = None
+    Returns:
+        Response dict with 'content' and optional 'reasoning_details', or None if failed
+    """
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://llm-counsel.local",
+        "X-Title": "LLM-COUNSEL Legal Strategy"
+    }
 
-    async def _get_client(self) -> httpx.AsyncClient:
-        """Get or create the async HTTP client."""
-        if self._client is None or self._client.is_closed:
-            self._client = httpx.AsyncClient(
-                base_url=self.base_url,
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "HTTP-Referer": "https://llm-counsel.local",
-                    "X-Title": "LLM-COUNSEL Legal Deliberation"
-                },
-                timeout=120.0
+    payload = {
+        "model": model,
+        "messages": messages,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(
+                OPENROUTER_API_URL,
+                headers=headers,
+                json=payload
             )
-        return self._client
-
-    async def close(self):
-        """Close the HTTP client."""
-        if self._client and not self._client.is_closed:
-            await self._client.aclose()
-            self._client = None
-
-    async def chat_completion(
-        self,
-        model: str,
-        messages: list[dict],
-        temperature: float = 0.7,
-        max_tokens: int = 4096,
-        stream: bool = False
-    ) -> dict | AsyncIterator[str]:
-        """
-        Send a chat completion request to OpenRouter.
-
-        Args:
-            model: The model identifier (e.g., "anthropic/claude-sonnet-4-20250514")
-            messages: List of message dicts with "role" and "content"
-            temperature: Sampling temperature (0-2)
-            max_tokens: Maximum tokens in response
-            stream: Whether to stream the response
-
-        Returns:
-            Full response dict if stream=False, async iterator of content chunks if stream=True
-        """
-        client = await self._get_client()
-
-        payload = {
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "stream": stream
-        }
-
-        if stream:
-            return self._stream_response(client, payload)
-        else:
-            response = await client.post("/chat/completions", json=payload)
             response.raise_for_status()
-            return response.json()
 
-    async def _stream_response(
-        self,
-        client: httpx.AsyncClient,
-        payload: dict
-    ) -> AsyncIterator[str]:
-        """Stream response chunks from OpenRouter."""
-        async with client.stream("POST", "/chat/completions", json=payload) as response:
-            response.raise_for_status()
-            async for line in response.aiter_lines():
-                if line.startswith("data: "):
-                    data = line[6:]
-                    if data == "[DONE]":
-                        break
-                    try:
-                        import json
-                        chunk = json.loads(data)
-                        if chunk.get("choices") and chunk["choices"][0].get("delta", {}).get("content"):
-                            yield chunk["choices"][0]["delta"]["content"]
-                    except (json.JSONDecodeError, KeyError, IndexError):
-                        continue
+            data = response.json()
+            message = data['choices'][0]['message']
 
-    async def generate(
-        self,
-        model: str,
-        system_prompt: str,
-        user_prompt: str,
-        temperature: float = 0.7,
-        max_tokens: int = 4096
-    ) -> str:
-        """
-        Simple generation interface with system and user prompts.
+            return {
+                'content': message.get('content'),
+                'reasoning_details': message.get('reasoning_details')
+            }
 
-        Args:
-            model: The model identifier
-            system_prompt: System/context prompt
-            user_prompt: User query
-            temperature: Sampling temperature
-            max_tokens: Maximum tokens
-
-        Returns:
-            Generated text content
-        """
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ]
-
-        response = await self.chat_completion(
-            model=model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            stream=False
-        )
-
-        return response["choices"][0]["message"]["content"]
-
-    async def generate_stream(
-        self,
-        model: str,
-        system_prompt: str,
-        user_prompt: str,
-        temperature: float = 0.7,
-        max_tokens: int = 4096
-    ) -> AsyncIterator[str]:
-        """
-        Streaming generation interface.
-
-        Args:
-            model: The model identifier
-            system_prompt: System/context prompt
-            user_prompt: User query
-            temperature: Sampling temperature
-            max_tokens: Maximum tokens
-
-        Yields:
-            Text content chunks as they arrive
-        """
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ]
-
-        async for chunk in await self.chat_completion(
-            model=model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            stream=True
-        ):
-            yield chunk
+    except Exception as e:
+        print(f"Error querying model {model}: {e}")
+        return None
 
 
-# Global client instance
-_client: OpenRouterClient | None = None
+async def query_models_parallel(
+    models: List[str],
+    messages: List[Dict[str, str]]
+) -> Dict[str, Optional[Dict[str, Any]]]:
+    """
+    Query multiple models in parallel.
 
+    Args:
+        models: List of OpenRouter model identifiers
+        messages: List of message dicts to send to each model
 
-def get_client() -> OpenRouterClient:
-    """Get the global OpenRouter client instance."""
-    global _client
-    if _client is None:
-        _client = OpenRouterClient()
-    return _client
+    Returns:
+        Dict mapping model identifier to response dict (or None if failed)
+    """
+    import asyncio
 
+    # Create tasks for all models
+    tasks = [query_model(model, messages) for model in models]
 
-async def cleanup_client():
-    """Cleanup the global client on shutdown."""
-    global _client
-    if _client:
-        await _client.close()
-        _client = None
+    # Wait for all to complete
+    responses = await asyncio.gather(*tasks)
+
+    # Map models to their responses
+    return {model: response for model, response in zip(models, responses)}

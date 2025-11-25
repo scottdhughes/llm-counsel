@@ -1,175 +1,86 @@
-"""
-LLM-COUNSEL API Server
-
-FastAPI server for the multi-model legal strategy deliberation system.
-"""
-from __future__ import annotations
-
-import json
-from contextlib import asynccontextmanager
-from typing import Any
+"""FastAPI backend for LLM-COUNSEL Legal Strategy System."""
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+from typing import List, Dict, Any
 
-from backend.config import API_HOST, API_PORT, COUNSEL_TEAM, LEAD_COUNSEL_MODEL, PRESETS
-from backend.counsel import CounselDeliberation
-from backend.openrouter import cleanup_client
-from backend.prompts.personas import get_all_personas, get_persona_display_info
-from backend.storage import get_storage
-from backend.utils.jurisdiction import get_all_jurisdictions
+from . import storage
+from .counsel import run_full_counsel
 
+app = FastAPI(title="LLM-COUNSEL API", description="Legal Strategy Deliberation System")
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan handler."""
-    # Startup
-    yield
-    # Shutdown
-    await cleanup_client()
-
-
-app = FastAPI(
-    title="LLM-COUNSEL",
-    description="Multi-Model Legal Strategy Deliberation System",
-    version="1.0.0",
-    lifespan=lifespan
-)
-
-# CORS middleware for frontend
+# Enable CORS for local development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# ============================================================================
-# Request/Response Models
-# ============================================================================
-
 class CreateMatterRequest(BaseModel):
     """Request to create a new matter."""
-    matter_name: str | None = Field(None, description="Name of the matter")
-    practice_area: str | None = Field(None, description="Practice area (e.g., 'employment')")
-    jurisdiction: str | None = Field(None, description="Jurisdiction code (e.g., 'federal')")
-    client: str | None = Field(None, description="Client name")
+    matter_name: str = "New Matter"
+    practice_area: str = "civil"
+    jurisdiction: str = "federal"
 
 
-class UpdateMatterRequest(BaseModel):
-    """Request to update matter metadata."""
-    matter_name: str | None = None
-    practice_area: str | None = None
-    jurisdiction: str | None = None
-    client: str | None = None
+class SendMessageRequest(BaseModel):
+    """Request to send a legal question."""
+    content: str
+    context: str = None
 
 
-class SubmitQuestionRequest(BaseModel):
-    """Request to submit a legal question for deliberation."""
-    content: str = Field(..., description="The legal question")
-    context: str | None = Field(None, description="Additional case context")
-    practice_area: str | None = Field(None, description="Override practice area")
-    jurisdiction: str | None = Field(None, description="Override jurisdiction")
-    stream: bool = Field(False, description="Whether to stream the response")
-
-
-class MatterSummary(BaseModel):
-    """Summary of a matter for listing."""
+class MatterMetadata(BaseModel):
+    """Matter metadata for list view."""
     id: str
     created_at: str
-    updated_at: str
-    metadata: dict
+    matter_name: str
+    practice_area: str
+    jurisdiction: str
     message_count: int
 
 
-class TeamConfigResponse(BaseModel):
-    """Current legal team configuration."""
-    counsel_team: list[dict]
-    lead_counsel_model: str
-    available_personas: list[dict]
-    available_jurisdictions: list[dict]
-    presets: dict
+class Matter(BaseModel):
+    """Full matter with all messages."""
+    id: str
+    created_at: str
+    matter_name: str
+    practice_area: str
+    jurisdiction: str
+    messages: List[Dict[str, Any]]
 
 
-# ============================================================================
-# Health & Config Endpoints
-# ============================================================================
-
-@app.get("/health")
-async def health_check():
+@app.get("/")
+async def root():
     """Health check endpoint."""
-    return {"status": "healthy", "service": "llm-counsel"}
+    return {"status": "ok", "service": "LLM-COUNSEL Legal Strategy API"}
 
 
-@app.get("/api/config/team", response_model=TeamConfigResponse)
-async def get_team_config():
-    """Get current legal team configuration and available options."""
-    return TeamConfigResponse(
-        counsel_team=COUNSEL_TEAM,
-        lead_counsel_model=LEAD_COUNSEL_MODEL,
-        available_personas=get_persona_display_info(),
-        available_jurisdictions=get_all_jurisdictions(),
-        presets=PRESETS
-    )
-
-
-@app.get("/api/config/personas")
-async def get_personas():
-    """Get all available legal personas."""
-    return {"personas": get_all_personas()}
-
-
-@app.get("/api/config/jurisdictions")
-async def get_jurisdictions():
-    """Get all available jurisdictions."""
-    return {"jurisdictions": get_all_jurisdictions()}
-
-
-# ============================================================================
-# Matter CRUD Endpoints
-# ============================================================================
-
-@app.get("/api/matters", response_model=list[MatterSummary])
+@app.get("/api/matters", response_model=List[MatterMetadata])
 async def list_matters():
-    """List all matters."""
-    storage = get_storage()
+    """List all matters (metadata only)."""
     return storage.list_matters()
 
 
-@app.post("/api/matters")
+@app.post("/api/matters", response_model=Matter)
 async def create_matter(request: CreateMatterRequest):
     """Create a new matter."""
-    storage = get_storage()
     matter = storage.create_matter(
         matter_name=request.matter_name,
         practice_area=request.practice_area,
-        jurisdiction=request.jurisdiction,
-        client=request.client
+        jurisdiction=request.jurisdiction
     )
     return matter
 
 
-@app.get("/api/matters/{matter_id}")
+@app.get("/api/matters/{matter_id}", response_model=Matter)
 async def get_matter(matter_id: str):
-    """Get a specific matter by ID."""
-    storage = get_storage()
+    """Get a specific matter with all its messages."""
     matter = storage.get_matter(matter_id)
-    if not matter:
-        raise HTTPException(status_code=404, detail="Matter not found")
-    return matter
-
-
-@app.put("/api/matters/{matter_id}")
-async def update_matter(matter_id: str, request: UpdateMatterRequest):
-    """Update a matter's metadata."""
-    storage = get_storage()
-    updates = request.model_dump(exclude_none=True)
-    matter = storage.update_matter(matter_id, updates)
-    if not matter:
+    if matter is None:
         raise HTTPException(status_code=404, detail="Matter not found")
     return matter
 
@@ -177,204 +88,50 @@ async def update_matter(matter_id: str, request: UpdateMatterRequest):
 @app.delete("/api/matters/{matter_id}")
 async def delete_matter(matter_id: str):
     """Delete a matter."""
-    storage = get_storage()
     deleted = storage.delete_matter(matter_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Matter not found")
     return {"status": "deleted", "id": matter_id}
 
 
-# ============================================================================
-# Deliberation Endpoints
-# ============================================================================
-
-@app.post("/api/matters/{matter_id}/messages")
-async def submit_question(matter_id: str, request: SubmitQuestionRequest):
+@app.post("/api/matters/{matter_id}/message")
+async def send_message(matter_id: str, request: SendMessageRequest):
     """
-    Submit a legal question for deliberation.
-
-    This triggers the 3-stage deliberation process:
-    1. Stage 1: Initial analyses from all counsel members
-    2. Stage 2: Peer assessment and ranking
-    3. Stage 3: Lead Counsel strategy synthesis
+    Submit a legal question and run the 3-stage counsel deliberation.
+    Returns the complete response with all stages.
     """
-    storage = get_storage()
+    # Check if matter exists
     matter = storage.get_matter(matter_id)
-    if not matter:
+    if matter is None:
         raise HTTPException(status_code=404, detail="Matter not found")
 
-    # Use matter metadata as defaults, allow request to override
-    practice_area = request.practice_area or matter["metadata"].get("practice_area")
-    jurisdiction = request.jurisdiction or matter["metadata"].get("jurisdiction")
-
     # Add user message
-    storage.add_message(
-        matter_id=matter_id,
-        role="user",
-        content=request.content,
+    storage.add_user_message(matter_id, request.content, request.context)
+
+    # Run the 3-stage legal counsel process
+    stage1_results, stage2_results, stage3_result, metadata = await run_full_counsel(
+        legal_question=request.content,
         context=request.context
     )
 
-    if request.stream:
-        return StreamingResponse(
-            stream_deliberation(
-                matter_id=matter_id,
-                legal_question=request.content,
-                context=request.context,
-                practice_area=practice_area,
-                jurisdiction=jurisdiction
-            ),
-            media_type="text/event-stream"
-        )
-    else:
-        # Non-streaming deliberation
-        engine = CounselDeliberation()
-        result = await engine.run_deliberation(
-            legal_question=request.content,
-            context=request.context,
-            practice_area=practice_area,
-            jurisdiction=jurisdiction
-        )
-
-        # Save assistant response
-        storage.add_message(
-            matter_id=matter_id,
-            role="assistant",
-            stage1=result["stage1"],
-            stage2=result["stage2"],
-            stage3=result["stage3"]
-        )
-
-        # Return the result with matter info
-        matter = storage.get_matter(matter_id)
-        return {
-            "matter_id": matter_id,
-            "result": result,
-            "messages": matter["messages"]
-        }
-
-
-async def stream_deliberation(
-    matter_id: str,
-    legal_question: str,
-    context: str | None,
-    practice_area: str | None,
-    jurisdiction: str | None
-):
-    """Generator for streaming deliberation events via SSE."""
-    engine = CounselDeliberation()
-    storage = get_storage()
-
-    stage1_results = {}
-    stage2_results = {}
-    stage3_result = {}
-
-    async for event in engine.run_deliberation_stream(
-        legal_question=legal_question,
-        context=context,
-        practice_area=practice_area,
-        jurisdiction=jurisdiction
-    ):
-        event_type = event["type"]
-        event_data = event["data"]
-
-        # Track results for saving
-        if event_type == "stage1_analysis":
-            role = event_data["role"]
-            stage1_results[role] = event_data["content"]
-        elif event_type == "stage1_complete":
-            stage1_results = event_data
-        elif event_type == "stage2_complete":
-            stage2_results = event_data
-        elif event_type == "stage3_complete":
-            stage3_result = event_data
-
-        # Send SSE event
-        yield f"event: {event_type}\n"
-        yield f"data: {json.dumps(event_data)}\n\n"
-
-    # Save the complete response
-    storage.add_message(
-        matter_id=matter_id,
-        role="assistant",
-        stage1=stage1_results,
-        stage2=stage2_results,
-        stage3=stage3_result
+    # Add assistant message with all stages
+    storage.add_assistant_message(
+        matter_id,
+        stage1_results,
+        stage2_results,
+        stage3_result
     )
 
-    # Send completion event
-    yield f"event: complete\n"
-    yield f"data: {json.dumps({'matter_id': matter_id})}\n\n"
+    # Return the complete response with metadata
+    return {
+        "stage1": stage1_results,
+        "stage2": stage2_results,
+        "stage3": stage3_result,
+        "metadata": metadata
+    }
 
-
-# ============================================================================
-# Quick Deliberation (No Matter Required)
-# ============================================================================
-
-class QuickDeliberationRequest(BaseModel):
-    """Request for quick deliberation without saving."""
-    legal_question: str = Field(..., description="The legal question")
-    context: str | None = Field(None, description="Additional context")
-    practice_area: str | None = Field(None, description="Practice area")
-    jurisdiction: str | None = Field(None, description="Jurisdiction")
-    stream: bool = Field(False, description="Stream response")
-
-
-@app.post("/api/deliberate")
-async def quick_deliberate(request: QuickDeliberationRequest):
-    """
-    Run a quick deliberation without saving to a matter.
-
-    Useful for one-off questions or testing.
-    """
-    engine = CounselDeliberation()
-
-    if request.stream:
-        return StreamingResponse(
-            quick_stream_deliberation(
-                legal_question=request.legal_question,
-                context=request.context,
-                practice_area=request.practice_area,
-                jurisdiction=request.jurisdiction
-            ),
-            media_type="text/event-stream"
-        )
-    else:
-        result = await engine.run_deliberation(
-            legal_question=request.legal_question,
-            context=request.context,
-            practice_area=request.practice_area,
-            jurisdiction=request.jurisdiction
-        )
-        return result
-
-
-async def quick_stream_deliberation(
-    legal_question: str,
-    context: str | None,
-    practice_area: str | None,
-    jurisdiction: str | None
-):
-    """Generator for quick streaming deliberation."""
-    engine = CounselDeliberation()
-
-    async for event in engine.run_deliberation_stream(
-        legal_question=legal_question,
-        context=context,
-        practice_area=practice_area,
-        jurisdiction=jurisdiction
-    ):
-        yield f"event: {event['type']}\n"
-        yield f"data: {json.dumps(event['data'])}\n\n"
-
-    yield f"event: complete\n"
-    yield f"data: {json.dumps({})}\n\n"
-
-
-# ============================================================================
-# Main Entry Point
-# ============================================================================
 
 if __name__ == "__main__":
     import uvicorn
+    from .config import API_HOST, API_PORT
     uvicorn.run(app, host=API_HOST, port=API_PORT)
