@@ -172,6 +172,21 @@ function WelcomeScreen({ onNewMatter }) {
   return (
     <div className="flex-1 flex items-center justify-center p-8">
       <div className="text-center max-w-2xl">
+        {/* Legal Disclaimer Banner */}
+        <div className="bg-red-50 border-l-4 border-red-600 p-4 mb-8 text-left">
+          <div className="flex items-start gap-3">
+            <div className="text-2xl">⚠️</div>
+            <div>
+              <h3 className="font-bold text-red-900 mb-2">IMPORTANT LEGAL DISCLAIMER</h3>
+              <p className="text-sm text-red-800 leading-relaxed">
+                This system does <strong>NOT</strong> provide legal advice. LLM-COUNSEL is a legal research and strategy analysis tool.
+                All outputs are AI-generated and must be reviewed by a licensed attorney. Do not rely on this information without
+                consulting qualified legal counsel. Attorney-client privilege does not apply to interactions with this system.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="text-6xl mb-6">⚖️</div>
         <h1 className="text-4xl font-bold text-blue-900 mb-4">
           LLM-COUNSEL

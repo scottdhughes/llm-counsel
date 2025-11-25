@@ -282,11 +282,26 @@ function Stage3Display({ stage3 }) {
   }
 
   return (
-    <div className="prose max-w-none bg-green-50 p-6 rounded-lg">
-      <div className="mb-4 text-sm text-gray-600">
-        Synthesized by: <strong>{stage3.model.split('/')[1] || stage3.model}</strong>
+    <div>
+      {/* Legal Disclaimer */}
+      <div className="bg-red-50 border-l-4 border-red-600 p-3 mb-4">
+        <div className="flex items-start gap-2">
+          <div className="text-lg">⚠️</div>
+          <div>
+            <p className="text-xs text-red-800 leading-relaxed">
+              <strong>DISCLAIMER:</strong> This AI-generated analysis is not legal advice.
+              All recommendations must be reviewed by a licensed attorney before implementation.
+            </p>
+          </div>
+        </div>
       </div>
-      <ReactMarkdown>{stage3.response}</ReactMarkdown>
+
+      <div className="prose max-w-none bg-green-50 p-6 rounded-lg">
+        <div className="mb-4 text-sm text-gray-600">
+          Synthesized by: <strong>{stage3.model.split('/')[1] || stage3.model}</strong>
+        </div>
+        <ReactMarkdown>{stage3.response}</ReactMarkdown>
+      </div>
     </div>
   );
 }
