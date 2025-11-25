@@ -10,7 +10,7 @@ LLM-COUNSEL adapts [Andrej Karpathy's llm-council](https://github.com/karpathy/l
 
 ## Core Value Proposition
 
-Get the equivalent of a senior partner strategy meeting with multiple expert attorneys deliberating on your legal question—powered by the latest AI models from Anthropic, OpenAI, and Google.
+Get the equivalent of a senior partner strategy meeting with multiple expert attorneys deliberating on your legal question—powered by the latest next-generation AI models from OpenAI, Google, Anthropic, and xAI.
 
 ## How It Works
 
@@ -39,7 +39,7 @@ Each model evaluates the other analyses **anonymously** (labeled "Response A", "
 The system calculates aggregate rankings to identify the strongest analyses.
 
 #### **Stage 3: Lead Counsel Synthesis**
-Claude Opus (the most capable model) reviews all analyses and rankings, then synthesizes a definitive **Lead Counsel Strategy Memorandum** including:
+Gemini 3 Pro Preview reviews all analyses and rankings, then synthesizes a definitive **Lead Counsel Strategy Memorandum** including:
 - Executive summary
 - Consensus legal analysis
 - Strategic recommendation (primary)
@@ -51,14 +51,14 @@ Claude Opus (the most capable model) reviews all analyses and rankings, then syn
 
 ## AI Models Used
 
-LLM-COUNSEL uses **only the latest and most capable models** for highest quality analysis:
+LLM-COUNSEL uses **next-generation AI models** for highest quality analysis:
 
 | Model | Provider | Role | Strengths |
 |-------|----------|------|-----------|
-| **Claude 3.5 Sonnet** | Anthropic | Counsel | Superior legal reasoning, structured analysis |
-| **Claude 3 Opus** | Anthropic | Counsel + Lead Counsel | Most capable, comprehensive synthesis |
-| **GPT-4 Turbo** | OpenAI | Counsel | Advanced reasoning, broad legal knowledge |
-| **Gemini Pro 1.5** | Google | Counsel | Long context, strategic insights |
+| **GPT-5.1** | OpenAI | Counsel | Next-generation reasoning, enhanced capabilities |
+| **Gemini 3 Pro Preview** | Google | Counsel + Lead Counsel | Advanced multimodal, long context, synthesis |
+| **Claude Sonnet 4.5** | Anthropic | Counsel | Enhanced legal reasoning, structured analysis |
+| **Grok-4** | xAI | Counsel | Latest real-time knowledge, diverse perspective |
 
 ## Quick Start
 
@@ -151,16 +151,16 @@ curl -X POST http://localhost:8001/api/matters/{matter_id}/message \
 ### Changing Models (backend/config.py)
 
 ```python
-# Legal Counsel Team - PREMIUM: Latest and most capable models only
+# Legal Counsel Team - NEXT-GEN: Latest and most capable models only
 COUNSEL_MODELS = [
-    "anthropic/claude-3.5-sonnet",
-    "anthropic/claude-3-opus",
-    "openai/gpt-4-turbo",
-    "google/gemini-pro-1.5",
+    "openai/gpt-5.1",
+    "google/gemini-3-pro-preview",
+    "anthropic/claude-sonnet-4.5",
+    "x-ai/grok-4",
 ]
 
 # Lead Counsel - synthesizes final strategy
-LEAD_COUNSEL_MODEL = "anthropic/claude-3-opus"
+LEAD_COUNSEL_MODEL = "google/gemini-3-pro-preview"
 ```
 
 You can modify these to use different models available through [OpenRouter](https://openrouter.ai/models).
@@ -178,27 +178,27 @@ DATA_DIR=data/conversations       # Optional - Where matters are stored
 
 - **Backend**: FastAPI (Python 3.10+)
 - **Frontend**: React + Vite + TailwindCSS + ReactMarkdown
-- **LLM API**: OpenRouter (multi-provider access to Anthropic, OpenAI, Google)
+- **LLM API**: OpenRouter (multi-provider access to OpenAI, Google, Anthropic, xAI)
 - **Storage**: JSON files (local filesystem)
 - **HTTP Client**: httpx (async)
 
 ## Cost Estimate
 
-Using premium models with typical legal question (~500 words):
+Using next-generation models with typical legal question (~500 words):
 
 | Stage | API Calls | Estimated Tokens | Cost Range |
 |-------|-----------|------------------|------------|
-| Stage 1 | 4 models (parallel) | ~2K input, ~2K output each | $0.30-0.60 |
-| Stage 2 | 4 models (parallel) | ~10K input, ~1K output each | $0.40-0.80 |
-| Stage 3 | 1 model (Lead Counsel) | ~20K input, ~3K output | $0.30-0.60 |
-| **Total per question** | **9 API calls** | **~50K tokens** | **$1.00-2.00** |
+| Stage 1 | 4 models (parallel) | ~2K input, ~2K output each | TBD* |
+| Stage 2 | 4 models (parallel) | ~10K input, ~1K output each | TBD* |
+| Stage 3 | 1 model (Lead Counsel) | ~20K input, ~3K output | TBD* |
+| **Total per question** | **9 API calls** | **~50K tokens** | **TBD*** |
 
 Costs vary based on:
 - Length of question and context
 - Complexity of analysis (longer responses)
 - Model pricing (changes over time)
 
-**Note**: These are estimates using premium models. You can reduce costs by using smaller/cheaper models in `backend/config.py`.
+**Note**: *Pricing for next-generation models (GPT-5.1, Gemini 3 Pro Preview, Claude Sonnet 4.5, Grok-4) is not yet established. These models may be in preview/beta. Check [OpenRouter pricing](https://openrouter.ai/models) for current rates. You can use different models in `backend/config.py` if these are not available.
 
 ## Project Structure
 
