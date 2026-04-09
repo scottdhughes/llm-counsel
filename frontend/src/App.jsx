@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import Sidebar from './components/Sidebar';
+import { useEffect, useState } from 'react';
+import MatterForm from './components/MatterForm';
 import MatterInterface from './components/MatterInterface';
+import Sidebar from './components/Sidebar';
 import { api } from './api';
 
 function App() {
@@ -9,13 +10,13 @@ function App() {
   const [currentMatter, setCurrentMatter] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  // Form state: null = closed, { mode: 'create' } or { mode: 'edit', matter }
+  const [formState, setFormState] = useState(null);
 
-  // Load matters on mount
   useEffect(() => {
     loadMatters();
   }, []);
 
-  // Load matter details when selected
   useEffect(() => {
     if (currentMatterId) {
       loadMatter(currentMatterId);
@@ -26,9 +27,9 @@ function App() {
     try {
       const mattersList = await api.listMatters();
       setMatters(mattersList);
-    } catch (error) {
-      console.error('Failed to load matters:', error);
-      setError(error.message);
+    } catch (err) {
+      console.error('Failed to load matters:', err);
+      setError(err.message);
     }
   };
 
@@ -36,34 +37,59 @@ function App() {
     try {
       const matter = await api.getMatter(id);
       setCurrentMatter(matter);
-    } catch (error) {
-      console.error('Failed to load matter:', error);
-      setError(error.message);
+    } catch (err) {
+      console.error('Failed to load matter:', err);
+      setError(err.message);
     }
   };
 
-  const handleNewMatter = async () => {
+  const handleOpenNewMatterForm = () => {
+    setFormState({ mode: 'create' });
+  };
+
+  const handleOpenEditForm = (matter) => {
+    setFormState({ mode: 'edit', matter });
+  };
+
+  const handleFormSubmit = async (values) => {
     try {
-      const newMatter = await api.createMatter({
-        matter_name: 'New Matter',
-        practice_area: 'civil',
-        jurisdiction: 'federal',
-      });
-      setMatters([
-        {
-          id: newMatter.id,
-          created_at: newMatter.created_at,
-          matter_name: newMatter.matter_name,
-          practice_area: newMatter.practice_area,
-          jurisdiction: newMatter.jurisdiction,
-          message_count: 0,
-        },
-        ...matters,
-      ]);
-      setCurrentMatterId(newMatter.id);
-    } catch (error) {
-      console.error('Failed to create matter:', error);
-      setError(error.message);
+      if (formState.mode === 'create') {
+        const newMatter = await api.createMatter(values);
+        setMatters([
+          {
+            id: newMatter.id,
+            created_at: newMatter.created_at,
+            matter_name: newMatter.matter_name,
+            practice_area: newMatter.practice_area,
+            jurisdiction: newMatter.jurisdiction,
+            message_count: 0,
+          },
+          ...matters,
+        ]);
+        setCurrentMatterId(newMatter.id);
+      } else {
+        // edit
+        const updated = await api.updateMatter(formState.matter.id, values);
+        setMatters(
+          matters.map((m) =>
+            m.id === updated.id
+              ? {
+                  ...m,
+                  matter_name: updated.matter_name,
+                  practice_area: updated.practice_area,
+                  jurisdiction: updated.jurisdiction,
+                }
+              : m
+          )
+        );
+        if (currentMatter && currentMatter.id === updated.id) {
+          setCurrentMatter({ ...currentMatter, ...updated });
+        }
+      }
+      setFormState(null);
+    } catch (err) {
+      console.error('Failed to save matter:', err);
+      setError(err.message);
     }
   };
 
@@ -79,9 +105,9 @@ function App() {
         setCurrentMatterId(null);
         setCurrentMatter(null);
       }
-    } catch (error) {
-      console.error('Failed to delete matter:', error);
-      setError(error.message);
+    } catch (err) {
+      console.error('Failed to delete matter:', err);
+      setError(err.message);
     }
   };
 
@@ -91,37 +117,30 @@ function App() {
     setIsLoading(true);
     setError(null);
 
+    // Optimistically add user message
+    const userMessage = { role: 'user', content, context };
+    setCurrentMatter((prev) => ({
+      ...prev,
+      messages: [...prev.messages, userMessage],
+    }));
+
     try {
-      // Optimistically add user message to UI
-      const userMessage = { role: 'user', content, context };
-      setCurrentMatter((prev) => ({
-        ...prev,
-        messages: [...prev.messages, userMessage],
-      }));
-
-      // Send message and get 3-stage response
       const response = await api.sendMessage(currentMatterId, content, context);
-
-      // Add assistant response with all stages
       const assistantMessage = {
         role: 'assistant',
         stage1: response.stage1,
         stage2: response.stage2,
         stage3: response.stage3,
-        metadata: response.metadata,
       };
-
       setCurrentMatter((prev) => ({
         ...prev,
         messages: [...prev.messages, assistantMessage],
       }));
-
-      // Reload matters list to update message count
       loadMatters();
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      setError(error.message);
-      // Remove optimistic user message on error
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      setError(err.message);
+      // Roll back the optimistic user message
       setCurrentMatter((prev) => ({
         ...prev,
         messages: prev.messages.slice(0, -1),
@@ -132,22 +151,22 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-legal-cream">
       <Sidebar
         matters={matters}
         currentMatterId={currentMatterId}
         onSelectMatter={handleSelectMatter}
-        onNewMatter={handleNewMatter}
+        onNewMatter={handleOpenNewMatterForm}
         onDeleteMatter={handleDeleteMatter}
       />
       <main className="flex-1 flex flex-col overflow-hidden">
         {error && (
-          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 m-4">
-            <p className="font-bold">Error</p>
-            <p>{error}</p>
+          <div className="bg-red-50 border-l-4 border-red-600 text-red-900 px-5 py-3 mx-4 mt-4 rounded">
+            <p className="font-semibold text-sm">Error</p>
+            <p className="text-sm">{error}</p>
             <button
               onClick={() => setError(null)}
-              className="mt-2 text-sm underline"
+              className="mt-1 text-xs underline text-red-700"
             >
               Dismiss
             </button>
@@ -159,72 +178,114 @@ function App() {
             matter={currentMatter}
             onSendMessage={handleSendMessage}
             isLoading={isLoading}
+            onEditMatter={() => handleOpenEditForm(currentMatter)}
           />
         ) : (
-          <WelcomeScreen onNewMatter={handleNewMatter} />
+          <WelcomeScreen onNewMatter={handleOpenNewMatterForm} />
         )}
       </main>
+
+      {formState && (
+        <MatterForm
+          mode={formState.mode}
+          initialValues={formState.mode === 'edit' ? formState.matter : {}}
+          onSubmit={handleFormSubmit}
+          onCancel={() => setFormState(null)}
+        />
+      )}
     </div>
   );
 }
 
 function WelcomeScreen({ onNewMatter }) {
+  const [team, setTeam] = useState(null);
+
+  useEffect(() => {
+    api.getTeamConfig().then(setTeam).catch((err) => {
+      console.warn('Failed to load team config:', err);
+    });
+  }, []);
+
   return (
-    <div className="flex-1 flex items-center justify-center p-8">
-      <div className="text-center max-w-2xl">
-        {/* Legal Disclaimer Banner */}
-        <div className="bg-red-50 border-l-4 border-red-600 p-4 mb-8 text-left">
+    <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto">
+      <div className="text-center max-w-4xl w-full py-8">
+        {/* Disclaimer banner */}
+        <div className="bg-red-50 border-l-4 border-red-600 p-4 mb-10 text-left rounded-sm">
           <div className="flex items-start gap-3">
             <div className="text-2xl">⚠️</div>
             <div>
-              <h3 className="font-bold text-red-900 mb-2">IMPORTANT LEGAL DISCLAIMER</h3>
-              <p className="text-sm text-red-800 leading-relaxed">
-                This system does <strong>NOT</strong> provide legal advice. LLM-COUNSEL is a legal research and strategy analysis tool.
-                All outputs are AI-generated and must be reviewed by a licensed attorney. Do not rely on this information without
-                consulting qualified legal counsel. Attorney-client privilege does not apply to interactions with this system.
+              <h3 className="font-display text-lg text-red-900 mb-1">
+                Important Legal Disclaimer
+              </h3>
+              <p className="text-xs text-red-900 leading-relaxed">
+                This system does <strong>NOT</strong> provide legal advice.
+                LLM-COUNSEL is a legal research and strategy analysis tool. All
+                outputs are AI-generated and must be reviewed by a licensed
+                attorney. Do not rely on this information without consulting
+                qualified legal counsel. Attorney-client privilege does not
+                apply to interactions with this system.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="text-6xl mb-6">⚖️</div>
-        <h1 className="text-4xl font-bold text-blue-900 mb-4">
-          LLM-COUNSEL
-        </h1>
-        <p className="text-xl text-gray-600 mb-8">
-          Legal Strategy Deliberation System
-        </p>
-        <p className="text-gray-500 mb-8">
-          Get strategic legal analysis from multiple AI models. Each model analyzes
-          your legal question, ranks peer responses, and a Lead Counsel synthesizes
-          the final strategy.
-        </p>
-        <div className="grid grid-cols-3 gap-6 mb-8 text-left">
-          <div className="p-4 bg-white rounded-lg shadow">
-            <div className="text-2xl mb-2">1</div>
-            <h3 className="font-semibold text-blue-900 mb-1">Initial Analyses</h3>
-            <p className="text-sm text-gray-500">
-              Multiple AI models analyze your legal question independently.
-            </p>
+        {/* Masthead */}
+        <div className="mb-10">
+          <div className="text-7xl mb-4">⚖</div>
+          <div className="text-[11px] font-mono uppercase tracking-[0.35em] text-legal-gold mb-3">
+            Multi-Model Legal Strategy Deliberation
           </div>
-          <div className="p-4 bg-white rounded-lg shadow">
-            <div className="text-2xl mb-2">2</div>
-            <h3 className="font-semibold text-blue-900 mb-1">Peer Rankings</h3>
-            <p className="text-sm text-gray-500">
-              Each model ranks the anonymized responses for quality.
-            </p>
-          </div>
-          <div className="p-4 bg-white rounded-lg shadow">
-            <div className="text-2xl mb-2">3</div>
-            <h3 className="font-semibold text-blue-900 mb-1">Lead Counsel</h3>
-            <p className="text-sm text-gray-500">
-              Lead Counsel synthesizes everything into a strategy memo.
+          <h1 className="font-display text-6xl text-legal-navy leading-none mb-4">
+            LLM-COUNSEL
+          </h1>
+          <div className="max-w-2xl mx-auto">
+            <p className="font-display text-xl italic text-gray-700 leading-relaxed">
+              Each legal question is analyzed by a team of AI attorneys with
+              different specialized perspectives, who then peer-review each
+              other's work. A Lead Counsel synthesizes the team's deliberation
+              into a final strategy memorandum.
             </p>
           </div>
         </div>
+
+        {/* Counsel team panel */}
+        {team && (
+          <div className="mb-10">
+            <div className="text-[10px] font-mono uppercase tracking-[0.3em] text-legal-gold mb-4">
+              Your Counsel Team
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {team.team.map((p) => (
+                <div
+                  key={p.role}
+                  className="bg-white rounded p-5 border-l-4 border-legal-gold shadow-sm text-left"
+                >
+                  <div className="text-2xl mb-2">{p.icon}</div>
+                  <div className="font-display text-lg text-legal-navy leading-tight">
+                    {p.display_name}
+                  </div>
+                  <div className="text-[10px] text-gray-500 italic mt-1">
+                    {p.focus_areas.slice(0, 2).join(' · ')}
+                  </div>
+                  <div
+                    className="font-mono text-[9px] text-gray-400 mt-2 truncate"
+                    title={p.model}
+                  >
+                    {p.model}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 text-[10px] text-gray-500 font-mono">
+              Lead Counsel synthesizer:{' '}
+              <code className="text-legal-navy">{team.lead_counsel}</code>
+            </div>
+          </div>
+        )}
+
         <button
           onClick={onNewMatter}
-          className="px-8 py-3 bg-blue-900 text-white rounded-lg hover:bg-blue-800 transition-colors font-semibold"
+          className="px-10 py-4 bg-legal-navy text-white rounded font-semibold text-sm uppercase tracking-[0.15em] hover:bg-blue-900 transition-colors"
         >
           Create New Matter
         </button>

@@ -2,98 +2,210 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * LLM-COUNSEL aesthetic: editorial law review.
+ *
+ * Display type:     Cormorant Garamond (serif with real character)
+ * UI chrome:        IBM Plex Sans (humanist sans with lawyerly restraint)
+ * Monospace:        IBM Plex Mono (model slugs, labels, metadata)
+ *
+ * Color system is driven by the tailwind config tokens: legal-navy (#1a365d),
+ * legal-gold (#c9a227), legal-cream (#faf8f5).
+ */
+
 :root {
-  font-family: 'Georgia', 'Times New Roman', serif;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-feature-settings: 'ss01', 'cv08';
   line-height: 1.6;
   font-weight: 400;
   color: #1a365d;
   background-color: #faf8f5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background-image:
+    radial-gradient(at 0% 0%, rgba(201, 162, 39, 0.04) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(26, 54, 93, 0.03) 0px, transparent 50%);
 }
 
-/* Legal document styling */
+/* Display type — use for memo titles, persona names, welcome header */
+.font-display {
+  font-family: 'Cormorant Garamond', 'Garamond', Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.font-mono {
+  font-family: 'IBM Plex Mono', 'Menlo', monospace;
+}
+
+/* Legal-prose: markdown rendered inside memoranda */
 .legal-prose {
-  font-family: 'Georgia', 'Times New Roman', serif;
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-size: 1.0625rem;
+  line-height: 1.72;
+  color: #2c2c2c;
 }
 
 .legal-prose h1,
 .legal-prose h2,
-.legal-prose h3 {
-  font-family: 'Garamond', 'Georgia', serif;
+.legal-prose h3,
+.legal-prose h4 {
+  font-family: 'Cormorant Garamond', Georgia, serif;
   font-weight: 600;
   color: #1a365d;
+  letter-spacing: -0.01em;
 }
 
 .legal-prose h1 {
-  font-size: 1.5rem;
+  font-size: 1.625rem;
+  margin-top: 1.75rem;
   margin-bottom: 1rem;
-  border-bottom: 2px solid #c9a227;
   padding-bottom: 0.5rem;
+  border-bottom: 2px solid #c9a227;
 }
 
 .legal-prose h2 {
-  font-size: 1.25rem;
+  font-size: 1.35rem;
   margin-top: 1.5rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.625rem;
 }
 
 .legal-prose h3 {
-  font-size: 1.1rem;
-  margin-top: 1rem;
+  font-size: 1.15rem;
+  margin-top: 1.1rem;
   margin-bottom: 0.5rem;
+  font-style: italic;
+}
+
+.legal-prose h4 {
+  font-size: 1.05rem;
+  margin-top: 0.9rem;
+  margin-bottom: 0.4rem;
 }
 
 .legal-prose p {
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.85rem;
 }
 
 .legal-prose ul,
 .legal-prose ol {
   margin-left: 1.5rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.85rem;
 }
 
 .legal-prose li {
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.35rem;
+}
+
+.legal-prose li::marker {
+  color: #c9a227;
 }
 
 .legal-prose strong {
   color: #1a365d;
+  font-weight: 600;
 }
 
-/* Scrollbar styling */
+.legal-prose em {
+  color: #4a5568;
+  font-style: italic;
+}
+
+.legal-prose blockquote {
+  border-left: 3px solid #c9a227;
+  padding-left: 1rem;
+  margin: 1rem 0;
+  color: #4a5568;
+  font-style: italic;
+}
+
+.legal-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.9rem;
+}
+
+.legal-prose th,
+.legal-prose td {
+  border: 1px solid #d4d4d4;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.legal-prose th {
+  background: #faf8f5;
+  color: #1a365d;
+  font-weight: 600;
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+
+.legal-prose hr {
+  border: none;
+  border-top: 1px solid #c9a227;
+  margin: 1.5rem 0;
+  opacity: 0.4;
+}
+
+.legal-prose code {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.9em;
+  background: #f5f3ee;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  color: #1a365d;
+}
+
+/* Letterhead top rule bar used on the Stage 3 memo */
+.letterhead-rule {
+  background: linear-gradient(to right, #c9a227 0%, #e5c967 50%, #c9a227 100%);
+}
+
+/* Scrollbar — subtle gold thumb on cream track */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: #faf8f5;
 }
 
 ::-webkit-scrollbar-thumb {
   background: #c9a227;
-  border-radius: 4px;
+  border-radius: 5px;
+  border: 2px solid #faf8f5;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: #a88820;
 }
 
-/* Animation for loading */
+/* Animations */
 @keyframes pulse-gold {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.5; }
 }
 
 .animate-pulse-gold {
   animation: pulse-gold 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes deliberate {
+  0%   { transform: rotate(0deg); }
+  25%  { transform: rotate(-5deg); }
+  75%  { transform: rotate(5deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.animate-deliberate {
+  animation: deliberate 2.4s ease-in-out infinite;
+  transform-origin: center;
 }

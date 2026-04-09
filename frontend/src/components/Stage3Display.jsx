@@ -1,171 +1,136 @@
-import React from 'react';
 import ReactMarkdown from 'react-markdown';
 
-function Stage3Display({ data, streamingContent, isLoading }) {
-  const content = data?.content || streamingContent || '';
+/**
+ * Stage3Display: renders the Lead Counsel synthesis memo in letterhead style.
+ *
+ * Props:
+ *   stage3: { model: string, content: string | null, error: string | null }
+ */
+function Stage3Display({ stage3 }) {
+  if (!stage3) {
+    return <div className="text-gray-500 py-8">No final strategy yet.</div>;
+  }
 
-  if (isLoading && !content) {
+  // Lead Counsel failed but Stage 1 + Stage 2 still ran.
+  if (stage3.error && !stage3.content) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin h-12 w-12 border-4 border-legal-gold border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-gray-500">Lead Counsel is synthesizing the strategy...</p>
-          <p className="text-sm text-gray-400 mt-2">
-            Reviewing all analyses and peer assessments
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-red-50 border-l-4 border-red-600 p-5 rounded">
+          <div className="font-display text-xl text-red-900 mb-2">
+            Lead Counsel synthesis failed
+          </div>
+          <p className="text-sm text-red-800 mb-2">
+            The Lead Counsel model was unable to synthesize a final memorandum.
+            Stage 1 and Stage 2 results remain available in their respective tabs.
+          </p>
+          <p className="text-xs font-mono text-red-700 mt-3 bg-red-100 p-2 rounded">
+            {stage3.error}
           </p>
         </div>
       </div>
     );
   }
 
-  if (!content) {
-    return (
-      <div className="text-center text-gray-500 py-12">
-        The Lead Counsel strategy memorandum will appear here after peer assessment.
-      </div>
-    );
+  if (!stage3.content) {
+    return <div className="text-gray-500 py-8">No final strategy yet.</div>;
   }
 
   return (
     <div className="max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="bg-legal-navy text-white rounded-t-lg p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold">
-              Legal Strategy Memorandum
-            </h2>
-            <p className="text-blue-200 mt-1">
-              Synthesized by Lead Counsel
-            </p>
-          </div>
-          <div className="text-right">
-            <div className="text-5xl">&#9878;</div>
-            {data?.model && (
-              <div className="text-xs text-blue-200 mt-2">
-                {data.model}
+      {/* Disclaimer */}
+      <div className="bg-red-50 border-l-4 border-red-600 px-4 py-3 mb-4 rounded-sm">
+        <p className="text-xs text-red-900 leading-relaxed">
+          <strong className="font-semibold">DISCLAIMER:</strong>{' '}
+          This AI-generated analysis is not legal advice. Review by a licensed
+          attorney is required before any implementation. Attorney-client
+          privilege does not apply to interactions with this system.
+        </p>
+      </div>
+
+      {/* Letterhead */}
+      <div className="bg-legal-navy text-legal-cream">
+        <div className="px-10 py-8">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="text-[10px] font-mono uppercase tracking-[0.3em] text-legal-gold mb-2">
+                In the matter of · Final memorandum · Stage III
               </div>
-            )}
+              <h2 className="font-display text-4xl leading-tight">
+                Lead Counsel
+                <span className="block italic text-3xl opacity-90">
+                  Strategy Memorandum
+                </span>
+              </h2>
+            </div>
+            <div className="text-right flex-shrink-0 ml-6">
+              <div className="text-5xl">⚖</div>
+              <div className="text-[9px] font-mono mt-2 text-legal-gold uppercase tracking-wider">
+                Synthesized by
+              </div>
+              <div className="text-[10px] font-mono mt-1 opacity-80">
+                {stage3.model}
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Memo Content */}
-      <div className="bg-white shadow-lg rounded-b-lg">
-        {/* Letterhead style border */}
-        <div className="h-2 bg-legal-gold" />
+      {/* Gold rule bar */}
+      <div className="h-[6px] letterhead-rule" />
 
-        <div className="p-8">
-          {/* Streaming indicator */}
-          {isLoading && content && (
-            <div className="mb-4 flex items-center gap-2 text-sm text-gray-500">
-              <span className="animate-pulse">&#9679;</span>
-              Writing...
-            </div>
-          )}
-
-          {/* Main content */}
-          <div className="legal-prose prose prose-lg max-w-none">
-            <ReactMarkdown
-              components={{
-                h1: ({ children }) => (
-                  <h1 className="text-2xl font-bold text-legal-navy border-b-2 border-legal-gold pb-2 mb-4 mt-6">
-                    {children}
-                  </h1>
-                ),
-                h2: ({ children }) => (
-                  <h2 className="text-xl font-semibold text-legal-navy mt-6 mb-3">
-                    {children}
-                  </h2>
-                ),
-                h3: ({ children }) => (
-                  <h3 className="text-lg font-semibold text-gray-800 mt-4 mb-2">
-                    {children}
-                  </h3>
-                ),
-                strong: ({ children }) => (
-                  <strong className="font-semibold text-legal-navy">
-                    {children}
-                  </strong>
-                ),
-                ul: ({ children }) => (
-                  <ul className="list-disc list-inside space-y-1 my-3 ml-4">
-                    {children}
-                  </ul>
-                ),
-                ol: ({ children }) => (
-                  <ol className="list-decimal list-inside space-y-1 my-3 ml-4">
-                    {children}
-                  </ol>
-                ),
-                blockquote: ({ children }) => (
-                  <blockquote className="border-l-4 border-legal-gold pl-4 my-4 italic text-gray-600">
-                    {children}
-                  </blockquote>
-                ),
-                hr: () => (
-                  <hr className="my-6 border-gray-200" />
-                ),
-              }}
-            >
-              {content}
-            </ReactMarkdown>
-          </div>
-
-          {/* Cursor for streaming */}
-          {isLoading && content && (
-            <span className="inline-block w-2 h-5 bg-legal-gold animate-pulse ml-1" />
-          )}
+      {/* Memo body */}
+      <div className="bg-white shadow-lg">
+        <div className="px-10 py-10 legal-prose">
+          <ReactMarkdown>{stage3.content}</ReactMarkdown>
         </div>
 
-        {/* Footer */}
-        <div className="border-t px-8 py-4 bg-gray-50 rounded-b-lg">
-          <div className="flex items-center justify-between text-sm text-gray-500">
-            <span>
-              &#9878; LLM-COUNSEL | Multi-Model Legal Strategy Deliberation
+        {/* Footer rule + metadata */}
+        <div className="border-t border-gray-200 px-10 py-5 bg-legal-parchment">
+          <div className="flex items-center justify-between text-xs text-gray-600">
+            <span className="font-mono">
+              ⚖ LLM-COUNSEL · Multi-Model Legal Strategy Deliberation
             </span>
-            <span>
+            <span className="font-mono">
               {new Date().toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'long',
-                day: 'numeric'
+                day: 'numeric',
               })}
             </span>
           </div>
-          <p className="text-xs text-gray-400 mt-2">
+          <p className="text-[11px] text-gray-500 italic mt-3 leading-relaxed">
             This memorandum is generated by AI for informational purposes only.
-            All legal strategies require review by a licensed attorney before implementation.
+            All legal strategies require review by a licensed attorney before
+            implementation.
           </p>
         </div>
       </div>
 
-      {/* Action Buttons */}
-      {data?.content && !isLoading && (
-        <div className="mt-6 flex gap-4 justify-center">
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText(content);
-              alert('Copied to clipboard!');
-            }}
-            className="px-6 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            Copy to Clipboard
-          </button>
-          <button
-            onClick={() => {
-              const blob = new Blob([content], { type: 'text/markdown' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = 'legal-strategy-memo.md';
-              a.click();
-            }}
-            className="px-6 py-2 bg-legal-navy text-white rounded-lg hover:bg-blue-800 transition-colors"
-          >
-            Download as Markdown
-          </button>
-        </div>
-      )}
+      {/* Action buttons */}
+      <div className="mt-6 flex gap-3 justify-center">
+        <button
+          onClick={() => {
+            navigator.clipboard.writeText(stage3.content);
+          }}
+          className="px-5 py-2 bg-white border border-gray-300 rounded text-sm hover:bg-legal-parchment transition-colors"
+        >
+          Copy to Clipboard
+        </button>
+        <button
+          onClick={() => {
+            const blob = new Blob([stage3.content], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'legal-strategy-memo.md';
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+          className="px-5 py-2 bg-legal-navy text-white rounded text-sm hover:bg-blue-900 transition-colors"
+        >
+          Download as Markdown
+        </button>
+      </div>
     </div>
   );
 }

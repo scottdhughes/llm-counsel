@@ -1,83 +1,75 @@
 /**
  * API client for the LLM-COUNSEL backend.
+ * Uses Vite's dev proxy (see vite.config.js) to forward /api → backend.
  */
 
-const API_BASE = 'http://localhost:8001';
+const API_BASE = '';  // empty → same origin → Vite proxy routes /api → :8001
+
+async function jsonOrThrow(response, action) {
+  if (!response.ok) {
+    let detail = '';
+    try {
+      const body = await response.json();
+      detail = body?.detail ? `: ${body.detail}` : '';
+    } catch {
+      // body wasn't JSON — fall through with status code only
+    }
+    throw new Error(`${action} failed (HTTP ${response.status})${detail}`);
+  }
+  return response.json();
+}
 
 export const api = {
-  /**
-   * List all matters.
-   */
   async listMatters() {
-    const response = await fetch(`${API_BASE}/api/matters`);
-    if (!response.ok) {
-      throw new Error('Failed to list matters');
-    }
-    return response.json();
+    const res = await fetch(`${API_BASE}/api/matters`);
+    return jsonOrThrow(res, 'List matters');
   },
 
-  /**
-   * Create a new matter.
-   */
   async createMatter(data = {}) {
-    const response = await fetch(`${API_BASE}/api/matters`, {
+    const res = await fetch(`${API_BASE}/api/matters`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         matter_name: data.matter_name || 'New Matter',
         practice_area: data.practice_area || 'civil',
         jurisdiction: data.jurisdiction || 'federal',
       }),
     });
-    if (!response.ok) {
-      throw new Error('Failed to create matter');
-    }
-    return response.json();
+    return jsonOrThrow(res, 'Create matter');
   },
 
-  /**
-   * Get a specific matter.
-   */
   async getMatter(matterId) {
-    const response = await fetch(`${API_BASE}/api/matters/${matterId}`);
-    if (!response.ok) {
-      throw new Error('Failed to get matter');
-    }
-    return response.json();
+    const res = await fetch(`${API_BASE}/api/matters/${matterId}`);
+    return jsonOrThrow(res, 'Get matter');
   },
 
-  /**
-   * Delete a matter.
-   */
+  async updateMatter(matterId, updates) {
+    const res = await fetch(`${API_BASE}/api/matters/${matterId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    return jsonOrThrow(res, 'Update matter');
+  },
+
   async deleteMatter(matterId) {
-    const response = await fetch(`${API_BASE}/api/matters/${matterId}`, {
+    const res = await fetch(`${API_BASE}/api/matters/${matterId}`, {
       method: 'DELETE',
     });
-    if (!response.ok) {
-      throw new Error('Failed to delete matter');
-    }
-    return response.json();
+    return jsonOrThrow(res, 'Delete matter');
   },
 
-  /**
-   * Send a legal question in a matter.
-   */
   async sendMessage(matterId, content, context = null) {
-    const response = await fetch(
-      `${API_BASE}/api/matters/${matterId}/message`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ content, context }),
-      }
-    );
-    if (!response.ok) {
-      throw new Error('Failed to send message');
-    }
-    return response.json();
+    const res = await fetch(`${API_BASE}/api/matters/${matterId}/message`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content, context }),
+    });
+    return jsonOrThrow(res, 'Send message');
+  },
+
+  async getTeamConfig() {
+    const res = await fetch(`${API_BASE}/api/config/team`);
+    return jsonOrThrow(res, 'Get team config');
   },
 };
