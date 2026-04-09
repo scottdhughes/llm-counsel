@@ -37,8 +37,9 @@ yarn-error.log*
 # Frontend build
 frontend/dist/
 
-# Data
+# Data (matter JSON + per-matter advisory lockfiles)
 data/conversations/*.json
+data/conversations/.*.lock
 
 # IDE
 .idea/

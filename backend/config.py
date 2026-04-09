@@ -1,35 +1,39 @@
-"""
-LLM-COUNSEL Configuration
+"""LLM-COUNSEL configuration: persona team, model pins, env loading."""
 
-Defines the legal counsel team and model assignments.
-"""
+from __future__ import annotations
 
 import os
+
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# OpenRouter API key
+# OpenRouter
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-
-# Legal Counsel Team - NEXT-GEN: Latest and most capable models only
-# Each model provides legal strategy analysis from different perspectives
-COUNSEL_MODELS = [
-    "openai/gpt-5.1",                      # GPT-5.1 - Next-generation reasoning
-    "google/gemini-3-pro-preview",         # Gemini 3 Pro Preview - Advanced multimodal
-    "anthropic/claude-sonnet-4.5",         # Claude Sonnet 4.5 - Enhanced legal reasoning
-    "x-ai/grok-4",                         # Grok-4 - Latest from xAI
-]
-
-# Lead Counsel - synthesizes final legal strategy
-LEAD_COUNSEL_MODEL = "google/gemini-3-pro-preview"
-
-# OpenRouter API endpoint
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-# Server configuration
-API_HOST = os.getenv("API_HOST", "0.0.0.0")
-API_PORT = int(os.getenv("API_PORT", "8001"))
+# Active counsel team: ordered mapping from persona role to OpenRouter model
+# slug. Each persona must exist in backend.prompts.personas.LEGAL_PERSONAS.
+# The order here is the order analyses are presented in the UI.
+COUNSEL_TEAM: dict[str, str] = {
+    "plaintiff_strategist": "x-ai/grok-4.20",
+    "defense_analyst": "anthropic/claude-opus-4.6",
+    "procedural_specialist": "openai/gpt-5.4",
+    "evidence_counsel": "google/gemini-3.1-pro-preview",
+}
 
-# Data directory for conversation storage
-DATA_DIR = os.getenv("DATA_DIR", "data/conversations")
+# Lead Counsel synthesizes the final memorandum. Gemini 3.1 Pro has the
+# longest context in the lineup, and using a different model family from
+# defense_analyst (which uses Opus 4.6) keeps cross-model diversity.
+LEAD_COUNSEL_MODEL: str = "google/gemini-3.1-pro-preview"
+
+# Per-call timeout for OpenRouter requests (seconds).
+MODEL_REQUEST_TIMEOUT: float = float(os.getenv("MODEL_REQUEST_TIMEOUT", "180.0"))
+
+# Server. 127.0.0.1 by default because this repo has no auth and no rate
+# limiting; binding to 0.0.0.0 is opt-in via env var.
+API_HOST: str = os.getenv("API_HOST", "127.0.0.1")
+API_PORT: int = int(os.getenv("API_PORT", "8001"))
+
+# Storage
+DATA_DIR: str = os.getenv("DATA_DIR", "data/conversations")
