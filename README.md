@@ -49,16 +49,23 @@ Gemini 3 Pro Preview reviews all analyses and rankings, then synthesizes a defin
 - Prioritized action plan
 - Conclusion
 
-## AI Models Used
+## Persona Team
 
-LLM-COUNSEL uses **next-generation AI models** for highest quality analysis:
+LLM-COUNSEL pairs each legal persona with a different frontier model, so the
+deliberation is not just multi-model but multi-perspective.
 
-| Model | Provider | Role | Strengths |
-|-------|----------|------|-----------|
-| **GPT-5.1** | OpenAI | Counsel | Next-generation reasoning, enhanced capabilities |
-| **Gemini 3 Pro Preview** | Google | Counsel + Lead Counsel | Advanced multimodal, long context, synthesis |
-| **Claude Sonnet 4.5** | Anthropic | Counsel | Enhanced legal reasoning, structured analysis |
-| **Grok-4** | xAI | Counsel | Latest real-time knowledge, diverse perspective |
+| Persona | Model (OpenRouter slug) | Why |
+|---|---|---|
+| **Plaintiff's Strategist** | `x-ai/grok-4.20` | Aggressive, lateral case-theory generation |
+| **Defense Analyst** | `anthropic/claude-opus-4.6` | Systematic risk decomposition |
+| **Procedural Specialist** | `openai/gpt-5.4` | Precision on rules and motion practice |
+| **Evidence Counsel** | `google/gemini-3.1-pro-preview` | Long context for discovery and expert reports |
+| **Lead Counsel** (synthesizer) | `google/gemini-3.1-pro-preview` | Longest context window for final synthesis |
+
+Four additional personas — `appellate_consultant`, `settlement_strategist`,
+`trial_tactician`, `regulatory_specialist` — are registered in the persona
+library and can be swapped into the active team by editing `COUNSEL_TEAM` in
+`backend/config.py`.
 
 ## Quick Start
 
@@ -148,22 +155,25 @@ curl -X POST http://localhost:8001/api/matters/{matter_id}/message \
 
 ## Configuration
 
-### Changing Models (backend/config.py)
+### Changing Team or Models (backend/config.py)
 
 ```python
-# Legal Counsel Team - NEXT-GEN: Latest and most capable models only
-COUNSEL_MODELS = [
-    "openai/gpt-5.1",
-    "google/gemini-3-pro-preview",
-    "anthropic/claude-sonnet-4.5",
-    "x-ai/grok-4",
-]
+# Each persona is paired 1:1 with a model. Personas are defined in
+# backend/prompts/personas.py; models can be any OpenRouter slug.
+COUNSEL_TEAM: dict[str, str] = {
+    "plaintiff_strategist": "x-ai/grok-4.20",
+    "defense_analyst": "anthropic/claude-opus-4.6",
+    "procedural_specialist": "openai/gpt-5.4",
+    "evidence_counsel": "google/gemini-3.1-pro-preview",
+}
 
-# Lead Counsel - synthesizes final strategy
-LEAD_COUNSEL_MODEL = "google/gemini-3-pro-preview"
+# Lead Counsel synthesizes the final memorandum
+LEAD_COUNSEL_MODEL: str = "google/gemini-3.1-pro-preview"
 ```
 
-You can modify these to use different models available through [OpenRouter](https://openrouter.ai/models).
+You can modify these to use different models available through
+[OpenRouter](https://openrouter.ai/models) or swap in different personas from
+the library in `backend/prompts/personas.py`.
 
 ### Environment Variables
 
@@ -315,7 +325,7 @@ Matters are stored as JSON files in `data/conversations/`:
 - Add input validation & sanitization
 - Set up monitoring and alerting
 
-See [Security Recommendations](docs/security.md) for detailed guidance.
+See [docs/security.md](docs/security.md) for detailed security recommendations before any non-local deployment.
 
 ## Troubleshooting
 

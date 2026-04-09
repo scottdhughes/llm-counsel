@@ -30,8 +30,11 @@ if [ ! -f .env ]; then
     fi
 fi
 
-# Load environment variables
-export $(grep -v '^#' .env | xargs)
+# Load environment variables (safe even with quoted values or spaces)
+set -a
+# shellcheck disable=SC1091
+source .env
+set +a
 
 # Check for API key
 if [ -z "$OPENROUTER_API_KEY" ]; then
